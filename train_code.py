@@ -9,7 +9,6 @@ import numpy as np
 from crip.io import imwriteTiff, imwriteRaw, imreadRaw, listDirectory, imreadTiffs, fetchCTParam, readDicom, imreadTiff
 from crip.postprocess import fovCrop, muToHU, huToMu
 from crip.physics import Spectrum, Atten, forwardProjectWithSpectrum, computeMu, EnergyConversion
-from crip.lowdose import injectPoissonNoise
 from crip.spec import deDecompRecon
 import numpy as np
 import torch
@@ -48,7 +47,7 @@ parser.add_argument('--log_name', type=str, default='')
 parser.add_argument('--gpu_devices', default='0', type=str)
 parser.add_argument('--parallel', action='store_true')
 parser.add_argument('--n_channel', type=int, default=2)
-parser.add_argument('--lr', type=float, default=4e-5)
+parser.add_argument('--lr', type=float, default=1e-5)
 parser.add_argument('--gamma', type=float, default=0.5)
 parser.add_argument('--n_epoch', type=int, default=100)
 parser.add_argument('--batchsize', type=int, default=2)
@@ -317,7 +316,7 @@ def pearsonR(x, y, batch_first=True, eps=1e-6):
 
 class LDCT(data.Dataset):
 
-    def __init__(self, data_file, crop_size=256, crop_size2 = 13, random_flip=True,
+    def __init__(self, data_file, crop_size=256, crop_size2 = 13,
                  hu_range=None, mu=None):
         if hu_range is None:
             hu_range = [-1300, 2000]
@@ -331,7 +330,6 @@ class LDCT(data.Dataset):
         self.mu = mu
         self.crop_size = crop_size
         self.crop_size2 = crop_size2
-        self.random_flip = random_flip
         self.data_files = read_files(data_file)
         self.range = hu_range
 
@@ -371,11 +369,6 @@ class LDCT(data.Dataset):
         
         if self.crop_size2 is not None:
             img_noise_1_small = self.random_crop_img3([img_noise_1])
-
-        if self.random_flip:
-            random_mode = np.random.randint(0, 8)
-            img_noise_1 = random_rotate_mirror(img_noise_1, random_mode)
-            img_noise_2 = random_rotate_mirror(img_noise_2, random_mode)
 
         return img_noise_1, img_noise_2, img_noise_1_small
 
@@ -479,7 +472,7 @@ TrainingLoader = DataLoader(dataset=TrainingDataset,
                             pin_memory=False,
                             drop_last=True)
 
-TestingDataset = LDCT('',crop_size=None,random_flip=False)
+TestingDataset = LDCT('',crop_size=None)
 TestingLoader = DataLoader(dataset=TestingDataset,
                             num_workers=2,
                             batch_size=1,
@@ -623,9 +616,6 @@ for epoch in range(1, opt.n_epoch + 1):
             loss4 = 0.0
             loss4_term = 0.0
 
-        loss6 = 0.0
-        loss6_term = 0.0
-
         if(opt.Lambda7 > 0):
             e_low_small_patch, e_high_small_patch = denormalization2(noisy_denoised_small_patch)
             ref_low_small_patch, ref_high_small_patch = denormalization2(small_patch)
@@ -652,7 +642,7 @@ for epoch in range(1, opt.n_epoch + 1):
             loss7 = 0.0
             loss7_term = 0.0
 
-        loss_all = loss1 + loss2 + loss3 + loss4 +loss3_2+loss6+loss7
+        loss_all = loss3 + loss4 + loss7
 
         loss_all.backward()
         optimizer.step()
