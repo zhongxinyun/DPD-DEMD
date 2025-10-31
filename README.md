@@ -27,8 +27,8 @@ Experiments show that when trained on **high-resolution datasets**, this method 
 
 **SIEMENS Clinical Dataset Result (VNC + Iodine map)**
 
-![fig4](C:\Users\admin\Desktop\fig4.jpg)
+![fig4](fig4.jpg)
 
 **SIEMENS Clinical Dataset Result ( 70kev VMI)**
 
-![fig5](C:\Users\admin\Desktop\fig5.jpg)
+![fig5](fig5.jpg)
